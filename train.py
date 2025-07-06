@@ -24,36 +24,44 @@ import torch.nn.utils.rnn as rnn_utils
 import numpy as np
 from dataset import CPMDataset
 
-#--epochs 40 --batch_size 8 --device 0,1 --train_path data/train.pkl
+#--epochs 40 --batch_size 8 --device 0,1 --train_path data/train.pkl #以前的推荐参数
+#--epochs 40 --batch_size 8 --device 0,1 --tokenized_data data/train.pkl
 def set_args():
     parser = argparse.ArgumentParser()
-    mode = r"novel"
-    parser.add_argument('--device', default='0', type=str, required=False, help='设置使用哪些显卡')
-    parser.add_argument('--no_cuda', action='store_true', help='不使用GPU进行训练')
-    parser.add_argument('--vocab_path', default='vocab/chinese_vocab.model', type=str, required=False, help='sp模型路径')
-    parser.add_argument('--model_config', default='config/cpm-small.json', type=str, required=False, help='需要从头训练一个模型时，模型参数的配置文件')
+    mode = r"zuowen"
+    parser.add_argument('--model_config', default='config/cpm-small.json', type=str, required=False, help='需要从头训练一个模型时，模型参数的配置文件')  # input
+    parser.add_argument('--vocab_path', default='vocab/chinese_vocab.model', type=str, required=False, help='sp模型路径')#input
+
     if mode == "novel":
-        parser.add_argument('--train_path', default='data/train_novel.pkl', type=str, required=False, help='经过预处理之后的数据存放路径')#input
-        parser.add_argument('--save_model_path', default='model/novel_output', type=str, required=False, help='模型输出路径')#output
+        parser.add_argument('--tokenized_data', default='data/train_novel.pkl', type=str, required=False, help='经过预处理之后的数据存放路径')#input
         parser.add_argument('--pretrained_model', default='model/novel', type=str, required=False, help='预训练的模型的路径')#input
+        parser.add_argument('--save_model_path', default='model/novel_output', type=str, required=False, help='模型输出路径')  # output
         parser.add_argument('--log_path', default='log/train_novel.log', type=str, required=False, help='训练日志存放位置')
-    else:
-        parser.add_argument('--train_path', default='data/train.pkl', type=str, required=False, help='经过预处理之后的数据存放路径')#input
-        parser.add_argument('--save_model_path', default='model/zuowen_output', type=str, required=False, help='模型输出路径')#output
+    elif mode == "zuowen":
+        parser.add_argument('--tokenized_data', default='data/train_zuowen.pkl', type=str, required=False, help='经过预处理之后的数据存放路径')#input
         parser.add_argument('--pretrained_model', default='model/zuowen', type=str, required=False, help='预训练的模型的路径')#input
+        parser.add_argument('--save_model_path', default='model/zuowen_output', type=str, required=False, help='模型输出路径')  # output
         parser.add_argument('--log_path', default='log/train_zuowen.log', type=str, required=False, help='训练日志存放位置')
+    else:
+        parser.add_argument('--tokenized_data', default='data/train_novel.pkl', type=str, required=False, help='经过预处理之后的数据存放路径')  # input
+        parser.add_argument('--pretrained_model', default='model/novel', type=str, required=False, help='预训练的模型的路径')  # input
+        parser.add_argument('--save_model_path', default='model/novel_output', type=str, required=False, help='模型输出路径')  # output
+        parser.add_argument('--log_path', default='log/train_novel.log', type=str, required=False, help='训练日志存放位置')
 
     parser.add_argument('--max_len', default=200, type=int, required=False, help='训练时，输入数据的最大长度')
     parser.add_argument('--ignore_index', default=-100, type=int, required=False, help='对于ignore_index的label token不计算梯度')
     parser.add_argument('--epochs', default=100, type=int, required=False, help='训练的最大轮次')
     parser.add_argument('--batch_size', default=16, type=int, required=False, help='训练的batch size')
     parser.add_argument('--gpu0_bsz', default=6, type=int, required=False, help='0号卡的batch size')
+
     parser.add_argument('--lr', default=1.5e-4, type=float, required=False, help='学习率')
     parser.add_argument('--eps', default=1.0e-09, type=float, required=False, help='AdamW优化器的衰减率')
     parser.add_argument('--log_step', default=10, type=int, required=False, help='多少步汇报一次loss')
     parser.add_argument('--gradient_accumulation_steps', default=6, type=int, required=False, help='梯度积累的步数')
     parser.add_argument('--max_grad_norm', default=1.0, type=float, required=False)
 
+    parser.add_argument('--device', default='0', type=str, required=False, help='设置使用哪些显卡')
+    parser.add_argument('--no_cuda', action='store_true', help='不使用GPU进行训练')
     parser.add_argument('--seed', type=int, default=1234, help='设置随机种子')
     parser.add_argument('--num_workers', type=int, default=0, help="dataloader加载数据时使用的线程数量")
     # parser.add_argument('--patience', type=int, default=0, help="用于early stopping,设为0时,不进行early stopping.early stop得到的模型的生成效果不一定会更好。")
@@ -74,9 +82,11 @@ def load_dataset(logger, args):
     加载训练集
     """
     logger.info("loading training dataset")
-    train_path = args.train_path
+    # train_path = args.train_path
+    tokenized_data = args.tokenized_data
 
-    with open(train_path, "rb") as f:
+    # with open(train_path, "rb") as f:
+    with open(tokenized_data, "rb") as f:
         train_list = pickle.load(f)
 
     # test
@@ -275,7 +285,7 @@ def main():
     set_random_seed(args.seed, args.cuda)
 
     # 初始化tokenizer https://www.sciencedirect.com/science/article/pii/S266665102100019X
-    tokenizer = CpmTokenizer(vocab_file="vocab/chinese_vocab.model")
+    tokenizer = CpmTokenizer(vocab_file=args.vocab_path)
     args.eod_id = tokenizer.convert_tokens_to_ids("<eod>")  # 文档结束符
     args.pad_id = tokenizer.pad_token_id
 

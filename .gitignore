@@ -5,12 +5,15 @@
 *.zip
 *.pkl
 *.bin
+*.safetensors
+model/*/*/*.safetensors
+log/*.log
 
 
  
 # 忽略Logs
 #logs
-#*.log
+*.log
  
 # 忽略/dist目录，相对.gitignore文件所在目录
 /dist

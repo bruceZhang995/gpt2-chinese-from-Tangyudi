@@ -12,11 +12,10 @@ def preprocess():
     """
     # 设置参数
     parser = argparse.ArgumentParser()
-    parser.add_argument('--vocab_file', default='vocab/chinese_vocab.model', type=str, required=False,
-                        help='词表路径')
+    parser.add_argument('--vocab_path', default='vocab/chinese_vocab.model', type=str, required=False, help='词表路径')
     parser.add_argument('--log_path', default='log/preprocess.log', type=str, required=False, help='日志存放位置')
     parser.add_argument('--data_path', default='data/zuowen', type=str, required=False, help='数据集存放位置')
-    parser.add_argument('--save_path', default='data/train.pkl', type=str, required=False, help='对训练数据集进行tokenize之后的数据存放位置')
+    parser.add_argument('--save_path', default='data/train_zuowen.pkl', type=str, required=False, help='对训练数据集进行tokenize之后的数据存放位置')
     parser.add_argument('--win_size', default=200, type=int, required=False, help='滑动窗口的大小，相当于每条数据的最大长度')
     parser.add_argument('--step', default=200, type=int, required=False, help='滑动窗口的滑动步幅')
     args = parser.parse_args()
@@ -25,7 +24,7 @@ def preprocess():
     logger = set_logger(args.log_path)
 
     # 初始化tokenizer
-    tokenizer = CpmTokenizer(vocab_file="vocab/chinese_vocab.model")#pip install jieba
+    tokenizer = CpmTokenizer(vocab_file=args.vocab_path)#pip install jieba
     eod_id = tokenizer.convert_tokens_to_ids("<eod>")   # 文档结束符
     sep_id = tokenizer.sep_token_id
 

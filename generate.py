@@ -53,24 +53,34 @@ def generate(max_len):
     result = tokenizer.decode(input_ids.squeeze(0))
     return result
 
-
+### --device 0 --max_len 500 --title 苏轼被贬苏州 --context 看填上云卷云舒，宠辱不惊 --model_path ./model/zuowen_epoch40
 if __name__ == '__main__':
     # 参数设置
+    mode = r"novel"
     parser = argparse.ArgumentParser()
-    parser.add_argument('--device', default='0', type=str, required=False, help='生成设备')
+    parser.add_argument('--vocab_path', default='vocab/chinese_vocab.model', type=str, required=False, help='sp模型路径')  # input
+    if mode == "novel":
+        parser.add_argument('--model_path', type=str, default='model/novel', help='文本生成模型存放位置')  # input
+        parser.add_argument('--title', type=str, default='血剑恩仇录', help='小说标题')
+        parser.add_argument('--context', type=str, default='血剑是干将莫邪铸造的绝世神兵', help='小说上文')
+        parser.add_argument('--log_path', default='log/generate_novel.log', type=str, required=False, help='日志存放位置')
+    elif mode == "zuowen":
+        parser.add_argument('--model_path', type=str, default='model/zuowen', help='文本生成模型存放位置')  # input
+        parser.add_argument('--title', type=str, default='家乡的四季', help='作文标题')
+        parser.add_argument('--context', type=str, default='家乡的四季,最美不过了', help='作文上文')
+        parser.add_argument('--log_path', default='log/generate_zuowen.log', type=str, required=False, help='日志存放位置')
+
+    parser.add_argument('--device', default='0', type=str, required=False, help='gpu/cpu')
+    parser.add_argument('--no_cuda', action='store_true', help='不使用GPU进行预测')
+    ##模型的参数配置
     parser.add_argument('--temperature', default=1, type=float, required=False, help='生成温度')
     parser.add_argument('--topk', default=0, type=int, required=False, help='最高几选一')
     parser.add_argument('--topp', default=0.85, type=float, required=False, help='最高积累概率')
     parser.add_argument('--repetition_penalty', default=1.0, type=float, required=False, help='重复惩罚参数')
     parser.add_argument('--context_len', default=200, type=int, required=False, help='每一步生成时，参考的上文的长度')
     parser.add_argument('--max_len', default=500, type=int, required=False, help='生成的最长长度')
-    parser.add_argument('--log_path', default='log/generate.log', type=str, required=False, help='日志存放位置')
-    parser.add_argument('--no_cuda', action='store_true', help='不使用GPU进行预测')
-    parser.add_argument('--model_path', type=str, default='model/zuowen', help='模型存放位置')
-    # parser.add_argument('--title', type=str, default='徜徉在书籍的阳光世界', help='作文标题')
-    # parser.add_argument('--context', type=str, default='一本书是一个人的眼睛，它可以让你看到另一个世界的奇妙', help='作文上文')
-    parser.add_argument('--title', type=str, default='家乡的四季', help='作文标题')
-    parser.add_argument('--context', type=str, default='家乡的四季,最美不过了', help='作文上文')
+
+
     args = parser.parse_args()
 
     os.environ["CUDA_VISIBLE_DEVICES"] = args.device  # 此处设置程序使用哪些显卡
@@ -82,7 +92,7 @@ if __name__ == '__main__':
     logger = set_logger(args.log_path)
 
     # 初始化tokenizer
-    tokenizer = CpmTokenizer(vocab_file="vocab/chinese_vocab.model")
+    tokenizer = CpmTokenizer(vocab_file=args.vocab_path)
     eod_id = tokenizer.convert_tokens_to_ids("<eod>")  # 文档结束符
     sep_id = tokenizer.sep_token_id
     unk_id = tokenizer.unk_token_id
